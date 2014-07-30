@@ -1,4 +1,12 @@
 <?php
+/**
+ * TwitterDataSourceForCakePHP
+ * 
+ * Copyright (c) 2014 Tadahisa Motooka
+ * 
+ * Licensed under MIT License.
+ * See the file "LICENSE" for more details.
+ */
 
 App::uses('HttpSocket', 'Network/Http');
 

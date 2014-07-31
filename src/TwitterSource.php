@@ -17,6 +17,7 @@ class TwitterSource extends DataSource {
 	// default configuration
 	public $config = array(
 		'api_url_base' => 'https://api.twitter.com/1.1/',
+		'oauth_url_base' => 'https://api.twitter.com/oauth/',
 		'oauth_consumer_key' => 'api-key',
 		'api_secret' => 'secret',
 		'user-agent' => 'Twitter Source'
@@ -83,6 +84,21 @@ class TwitterSource extends DataSource {
 		$response = $this->sendRequest('POST', 'statuses/update.json', array(), $oauthArgs, $this->oauthTokenSecret, $params);
 		
 		return $response;
+	}
+	
+	public function requestToken($callbackURL) {
+		$api_url_base = $this->config['api_url_base'];
+		
+		$uri = $this->config['oauth_url_base'] . 'request_token';
+		$this->config['api_url_base'] = $uri;
+		$oauthArgs = array(
+			'oauth_callback' => rawurlencode($callbackURL)
+		);
+		$res = $this->sendRequest('POST', '', array(), $oauthArgs, '', array());
+		
+		$this->config['api_url_base'] = $api_url_base;
+		
+		return $res;
 	}
 	
 	// =========================================================

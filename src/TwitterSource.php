@@ -63,6 +63,24 @@ class TwitterSource extends DataSource {
 	// ===== before calling these methods, set $oauthToken & $oauthTokenSecret if required.
 	// =========================================================
 	// =========================================================
+	public function verifyCredentials($params) {
+		// see https://dev.twitter.com/docs/api/1.1/get/account/verify_credentials for contents of $params
+		
+		$oauthArgs = array(
+			'oauth_token' => $this->oauthToken
+		);
+		$response = $this->sendRequest('GET', 'account/verify_credentials.json', $params, $oauthArgs, $this->oauthTokenSecret, array());
+		
+		if($response->isOk()) {
+			$res = $response->body();
+			return json_decode($res, true, 512, JSON_BIGINT_AS_STRING);
+		}
+		else {
+			return array();
+		}
+		return $response;
+	}
+	
 	public function getHomeTimeline($params) {
 		// see https://dev.twitter.com/docs/api/1.1/get/statuses/home_timeline for contents of $params
 		
@@ -86,19 +104,97 @@ class TwitterSource extends DataSource {
 		return $response;
 	}
 	
+	public function tweetWithMedia($params, $filepaths) {
+		// see https://dev.twitter.com/docs/api/1.1/post/statuses/update_with_media for contents of $params (except "media")
+		// "status"  is required
+		// put a string or an array of strings for $filepaths which indicates filepath(s) to media file.
+		// please refer the above URL for limitations (such as size)
+		
+		$media = array();
+		if(empty($filepaths)) {
+			return $this->tweet($params);
+		}
+		else if(is_array($filepaths)) {
+			foreach($filepaths as $filepath) {
+				$base64 = $this->readMediaFile($filepath);
+				if($base64 === false) {
+					return false;
+				}
+				$media[] = $base64;
+			}
+			if(empty($media)) {
+				return false;
+			}
+		}
+		else {
+			$base64 = $this->readMediaFile($filepaths);
+			if($base64 === false) {
+				return false;
+			}
+			$media[] = $base64;
+		}
+		$params['media'] = $media;
+		
+		$oauthArgs = array(
+			'oauth_token' => $this->oauthToken
+		);
+		$response = $this->sendRequest('POST', 'statuses/update_with_media.json', array(), $oauthArgs, $this->oauthTokenSecret, $params);
+		
+		return $response;
+	}
+	
 	public function requestToken($callbackURL) {
+		$logPrefix = '[TwitterSource::requestToken] ';
+		
 		$api_url_base = $this->config['api_url_base'];
 		
 		$uri = $this->config['oauth_url_base'] . 'request_token';
 		$this->config['api_url_base'] = $uri;
 		$oauthArgs = array(
-			'oauth_callback' => rawurlencode($callbackURL)
+			'oauth_callback' => $callbackURL
 		);
 		$res = $this->sendRequest('POST', '', array(), $oauthArgs, '', array());
 		
 		$this->config['api_url_base'] = $api_url_base;
 		
-		return $res;
+		if($this->withDebugLog) {
+			CakeLog::write(LOG_DEBUG, $logPrefix . print_r($res, true));
+		}
+		if($res->isOk()) {
+			return $this->decodeQueryString($res->body());
+		}
+		else {
+			return array();
+		}
+	}
+	
+	public function accessToken($oauth_token, $oauth_token_secret, $oauth_verifier) {
+		$logPrefix = '[TwitterSource::accessToken] ';
+		
+		$api_url_base = $this->config['api_url_base'];
+		
+		$uri = $this->config['oauth_url_base'] . 'access_token';
+		$this->config['api_url_base'] = $uri;
+		$oauthArgs = array(
+			'oauth_token' => $oauth_token
+		);
+		$postParameters = array(
+			'oauth_verifier' => $oauth_verifier
+		);
+		$res = $this->sendRequest('POST', '', array(), $oauthArgs, $oauth_token_secret, $postParameters);
+		
+		$this->config['api_url_base'] = $api_url_base;
+		
+		if($this->withDebugLog) {
+			CakeLog::write(LOG_DEBUG, $logPrefix . print_r($res, true));
+		}
+		if($res->isOk()) {
+			// this will contain oauth_token and oauth_token_secret
+			return $this->decodeQueryString($res->body());
+		}
+		else {
+			return array();
+		}
 	}
 	
 	// =========================================================
@@ -194,6 +290,52 @@ class TwitterSource extends DataSource {
 		return $response;
 	}
 	
+	
+	// =========================================================
+	// =========================================================
+	// ===== utility methods
+	// =========================================================
+	// =========================================================
+	public function decodeQueryString($resBodyStr) {
+		// decodes "key=val&key=val..." string into array.
+		
+		$result = array();
+		$resItems = explode('&', $resBodyStr);
+		foreach($resItems as $resItem) {
+			$kv = explode('=', $resItem);
+			$key = $kv[0];
+			$key = urldecode($key);
+			$value = isset($kv[1]) ? $kv[1] : null;
+			$value = urldecode($value);
+			$result[$key] = $value;
+		}
+		return $result;
+	}
+	
+	public function readMediaFile($filepath) {
+		// reads media file.
+		// if unreadable, returns false. otherwise, returns base64-encoded media data.
+		
+		
+		if(!file_exists($filepath)) {
+			return false;
+		}
+		
+		if(!is_readable($filepath)) {
+			return false;
+		}
+		
+		if(is_dir($filepath)) {
+			return false;
+		}
+		
+		$bin = file_get_contents($filepath);
+		if($bin === false) {
+			return false;
+		}
+		
+		return base64_encode($bin);
+	}
 	
 	// =========================================================
 	// =========================================================

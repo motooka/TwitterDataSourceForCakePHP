@@ -20,7 +20,8 @@ class TwitterSource extends DataSource {
 		'oauth_url_base' => 'https://api.twitter.com/oauth/',
 		'oauth_consumer_key' => 'api-key',
 		'api_secret' => 'secret',
-		'user-agent' => 'Twitter Source'
+		'user-agent' => 'Twitter Source',
+		'withDebugLog' => true,
 	);
 	
 	// user specific setting : usually these variables should be changed dynamically.
@@ -36,6 +37,7 @@ class TwitterSource extends DataSource {
 	public function __construct($config) {
 		parent::__construct($config);
 		$this->Http = new HttpSocket();
+		$this->withDebugLog = !empty($config['withDebugLog']);
 	}
 	
 	// =========================================================

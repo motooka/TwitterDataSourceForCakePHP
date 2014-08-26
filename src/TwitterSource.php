@@ -22,6 +22,7 @@ class TwitterSource extends DataSource {
 		'api_secret' => 'secret',
 		'user-agent' => 'Twitter Source',
 		'withDebugLog' => true,
+		'retryCount' => 3,
 		'HttpSocket.timeout' => 2.50,
 	);
 	
@@ -314,7 +315,22 @@ class TwitterSource extends DataSource {
 				'User-Agent' => $this->config['user-agent'],
 			),
 		);
-		$response = $this->Http->request($request);
+		$response = null;
+		$retryCount = empty($this->config['retryCount']) || $this->config['retryCount'] < 1 ? 1 : $this->config['retryCount'];
+		for($i=0; $i<$retryCount; $i++) {
+			try {
+				$response = $this->Http->request($request);
+				break;
+			}
+			catch(Exception $e) {
+				if($this->withDebugLog) {
+					$this->log('[TwitterSource] caught an exception and the request MAY be tried again : ' . $e->getMessage(), LOG_DEBUG);
+				}
+				if($i+1 >= $retryCount) {
+					throw $e;
+				}
+			}
+		}
 		return $response;
 	}
 	

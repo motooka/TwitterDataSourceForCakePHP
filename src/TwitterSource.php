@@ -22,6 +22,7 @@ class TwitterSource extends DataSource {
 		'api_secret' => 'secret',
 		'user-agent' => 'Twitter Source',
 		'withDebugLog' => true,
+		'HttpSocket.timeout' => 2.50,
 	);
 	
 	// user specific setting : usually these variables should be changed dynamically.
@@ -36,8 +37,33 @@ class TwitterSource extends DataSource {
 	
 	public function __construct($config) {
 		parent::__construct($config);
-		$this->Http = new HttpSocket();
+		$httpConfig = array(
+			// see the source code of lib/Cake/Network/Http/HttpSocket.php
+			'persistent' => false,
+			'host' => 'localhost',
+			'protocol' => 'tcp',
+			'port' => 80,
+			'timeout' => $config['HttpSocket.timeout'],
+			'ssl_verify_peer' => true,
+			'ssl_allow_self_signed' => false,
+			'ssl_verify_depth' => 5,
+			'ssl_verify_host' => true,
+			'request' => array(
+				'uri' => array(
+					'scheme' => array('http', 'https'),
+					'host' => 'localhost',
+					'port' => array(80, 443)
+				),
+				'redirect' => false,
+				'cookies' => array(),
+			)
+		);
+		$this->Http = new HttpSocket($httpConfig);
 		$this->withDebugLog = !empty($config['withDebugLog']);
+		
+		if($this->withDebugLog) {
+			$this->log('TwitterSource is now configured as : ' . print_r($config, true), LOG_DEBUG);
+		}
 	}
 	
 	// =========================================================

@@ -3,6 +3,11 @@ TwitterDataSourceForCakePHP
 
 A DataSource class for CakePHP 2.x to call Twitter API 1.1.
 
+## This Project is Archived ##
+This project will no longer be maintained because...
+- many users have moved to CakePHP 3.x from 2.x
+- Twitter API has changed and some APIs are deprecated
+
 ## Installation (summary) ##
 - Copy `TwitterSource.php` into your `app/Model/DataSource` directory.
 - Add consumer key settings in your `app/Config/database.php` as described below. See `$config` property of the class `TwitterSource` to get the list of setting items and default values.
